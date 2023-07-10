@@ -27,7 +27,6 @@ export const defaultNames = [
     "Surge",
     "Gargoyle",
     "RogueWarrior",
-    "IWinEveryTime",
     "YouMadBro",
     "WonderWoman",
     'GameGuru',
