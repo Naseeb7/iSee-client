@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { io } from "socket.io-client";
 import Peer from "simple-peer"
 import { setOncall } from '../reducers';
+import Message from './Message';
 
 const baseURL = process.env.REACT_APP_BASE_URL
 
@@ -11,6 +12,7 @@ const VideoCall = () => {
     const [myId, setMyId] = useState()
     const [stream, setStream] = useState()
     const [userId, setUserId] = useState()
+    const [callerId, setCallerId] = useState()
     const [incomingCall, setIncomingCall] = useState(false)
     const [userSignal, setUserSignal] = useState()
     const [myVideoOn, setMyVideoOn] = useState(true)
@@ -18,6 +20,7 @@ const VideoCall = () => {
     const [mute, setMute] = useState(false)
     const [userMute, setUserMute] = useState(false)
     const [userName, setUserName] = useState("")
+    const [callerName, setCallerName] = useState("")
     const name = useSelector((state) => state.name)
     const socket = useRef()
     const dispatch = useDispatch()
@@ -37,32 +40,33 @@ const VideoCall = () => {
             reconnectionDelay: 500,
             reconnectionAttempts: Infinity,
         });
+
+        socket.current.off("myid")
         socket.current.on("myid", (data) => {
             setMyId(data)
         })
-        socket.current.on("messagereceived", (data) => {
-            console.log(data)
-        })
-        socket.current.on("userVideoOff", (data) => {
-            setUserVideoOff(data)
-        })
-        socket.current.on("userMute", (data) => {
-            setUserMute(data)
-        })
+
+        socket.current.off("receivingCall")
         socket.current.on("receivingCall", (data) => {
             setIncomingCall(true);
-            setUserId(data.from);
-            setUserName(data.name);
+            setCallerId(data.from);
+            setCallerName(data.name);
             setUserSignal(data.signal);
             // document.getElementById("callerAvatar").innerHTML=multiavatar(data.name)
         })
+
+        socket.current.off("userVideoOff")
+        socket.current.on("userVideoOff", (data) => {
+            setUserVideoOff(data)
+        })
+
+        socket.current.off("userMute")
+        socket.current.on("userMute", (data) => {
+            setUserMute(data)
+        })
     }, [])
 
-    const sendMessage = () => {
-        socket.current.emit("messagesent", { to: userId, message: name })
-    }
-
-    const callUser = (id) => {
+    const callUser = () => {
         const peer = new Peer({
             initiator: true,
             trickle: false,
@@ -70,6 +74,7 @@ const VideoCall = () => {
         })
 
         peer.on("signal", (data) => {
+            socket.current.off("callUser")
             socket.current.emit("callUser", {
                 userToCall: userId,
                 signalData: data,
@@ -82,14 +87,24 @@ const VideoCall = () => {
             callerStream.current.srcObject = data;
         })
 
+        socket.current.off("callAccepted")
         socket.current.on("callAccepted", (data) => {
-            dispatch(setOncall({ onCall: true }))
-            peer.signal(data)
+            if (data.accepted === true) {
+                dispatch(setOncall({ onCall: true }))
+                peer.signal(data.signal)
+            } else {
+                document.getElementById("userbusy").innerHTML = `${data.name} is busy`
+            }
         })
         peerRef.current = peer
     }
 
-    const answerCall = () => {
+    const answerCall =async () => {
+        if(onCall){
+            await peerRef.current.destroy()
+        }
+        setUserId(callerId)
+        setUserName(callerName)
         dispatch(setOncall({ onCall: true }))
         setIncomingCall(false)
         const peer = new Peer({
@@ -99,9 +114,11 @@ const VideoCall = () => {
         })
 
         peer.on("signal", (data) => {
+            socket.current.off("answeredCall")
             socket.current.emit("answeredCall", {
-                to: userId,
-                signal: data
+                to: callerId,
+                signal: data,
+                accepted: true
             })
         })
 
@@ -116,7 +133,11 @@ const VideoCall = () => {
     if (peerRef.current) {
         peerRef.current.on("close", () => {
             dispatch(setOncall({ onCall: false }));
-            socket.current.off("callAccepted")
+            // socket.current.off("callAccepted")
+            setUserId("")
+        })
+        peerRef.current.on('error',(error)=>{
+            console.log(error)
         })
     }
 
@@ -141,8 +162,20 @@ const VideoCall = () => {
         })
     }
 
+    const rejectCall = () => {
+        socket.current.off("answeredCall")
+        socket.current.emit("answeredCall", {
+            to: callerId,
+            name : name,
+            accepted: false
+        })
+        setCallerId("")
+        setIncomingCall(false)
+    }
+
     return (
         <div className='flex flex-col gap-2 justify-center items-center'>
+            {onCall && <div>{userName}</div>}
             {stream && <video playsInline ref={myStream} autoPlay muted height="5rem" width="300rem" />}
             {!myVideoOn && <div>Avatar</div>}
             {onCall && <video playsInline ref={callerStream} autoPlay height="5rem" width="300rem" />}
@@ -152,6 +185,7 @@ const VideoCall = () => {
             {onCall && (
                 userMute ? <div>User  Mute</div> : <div>User Unmute</div>
             )}
+            <div id="userbusy"></div>
             {mute && <div>Muted</div>}
             <div className="flex">
                 <input type="text" onChange={(e) => setUserId(e.target.value)} />
@@ -161,8 +195,9 @@ const VideoCall = () => {
             {incomingCall && (
                 <div className="flex">
                     <div id="callerAvatar"></div>
-                    <div>{userName}</div>
+                    <div>{callerName}</div>
                     <button onClick={answerCall}>Answer</button>
+                    <button onClick={rejectCall}>Reject</button>
                 </div>
             )}
             {onCall && (
@@ -170,7 +205,9 @@ const VideoCall = () => {
                     <button onClick={endCall}>End</button>
                 </div>
             )}
-            <button onClick={()=>console.log(peerRef.current)}>Peer</button>
+            {onCall && (
+                <Message socket={socket.current} userId={userId} />
+            )}
             <button onClick={muteUnmute}>Mute</button>
             <button onClick={stopVideo}>Stop video</button>
         </div>
