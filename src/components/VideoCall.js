@@ -19,6 +19,7 @@ const VideoCall = () => {
     const [userVideoOff, setUserVideoOff] = useState(false)
     const [mute, setMute] = useState(false)
     const [userMute, setUserMute] = useState(false)
+    const timeOutRef = useRef()
     const [userName, setUserName] = useState("")
     const [callerName, setCallerName] = useState("")
     const name = useSelector((state) => state.name)
@@ -35,25 +36,25 @@ const VideoCall = () => {
             myStream.current.srcObject = data;
         })
 
-        socket.current = io(baseURL, {
-            reconnection: true,
-            reconnectionDelay: 500,
-            reconnectionAttempts: Infinity,
-        });
+        socket.current = io(baseURL,{
+            reconnection : true,
+            reconnectionDelay : 500,
+            reconnectionAttempts : Infinity,
+        })
 
         socket.current.off("myid")
         socket.current.on("myid", (data) => {
             setMyId(data)
         })
 
-        socket.current.off("receivingCall")
-        socket.current.on("receivingCall", (data) => {
-            setIncomingCall(true);
-            setCallerId(data.from);
-            setCallerName(data.name);
-            setUserSignal(data.signal);
-            // document.getElementById("callerAvatar").innerHTML=multiavatar(data.name)
-        })
+        // socket.current.off("receivingCall")
+        // socket.current.on("receivingCall", (data) => {
+        //     setIncomingCall(true);
+        //     setCallerId(data.from);
+        //     setCallerName(data.name);
+        //     setUserSignal(data.signal);
+        //     // document.getElementById("callerAvatar").innerHTML=multiavatar(data.name)
+        // })
 
         socket.current.off("userVideoOff")
         socket.current.on("userVideoOff", (data) => {
@@ -64,7 +65,74 @@ const VideoCall = () => {
         socket.current.on("userMute", (data) => {
             setUserMute(data)
         })
+
+        socket.current.off("callEnded")
+        socket.current.on("callEnded", (data) => {
+            if (peerRef.current) {
+                peerRef.current.destroy()
+            }
+        })
     }, [])
+
+    if (socket.current) {
+        if (incomingCall) {
+            socket.current.off("receivingCall")
+            socket.current.on("receivingCall", (data) => {
+                socket.current.off("answeredCall")
+                socket.current.emit("answeredCall", {
+                    to: data.from,
+                    name: name,
+                    accepted: false,
+                    reason: `${name} is busy`
+                })
+            })
+        } else if (onCall) {
+            socket.current.off("receivingCall")
+            socket.current.on("receivingCall", (data) => {
+                setIncomingCall(true);
+                setCallerId(data.from);
+                setCallerName(data.name);
+                setUserSignal(data.signal);
+                socket.current.off("answeredCall")
+                socket.current.emit("answeredCall", {
+                    to: data.from,
+                    name: name,
+                    accepted: false,
+                    reason: `${name} is on another call, please wait!`
+                })
+                timeOutRef.current = setTimeout(() => {
+                    socket.current.off("answeredCall")
+                    socket.current.emit("answeredCall", {
+                        to: data.from,
+                        name: name,
+                        accepted: false,
+                        reason: `${name} did not answer the call`
+                    })
+                    setIncomingCall(false);
+                }, 30 * 1000);
+            })
+        }
+        else {
+            socket.current.off("receivingCall")
+            socket.current.on("receivingCall", (data) => {
+                setIncomingCall(true);
+                setCallerId(data.from);
+                setCallerName(data.name);
+                setUserSignal(data.signal);
+                // document.getElementById("callerAvatar").innerHTML=multiavatar(data.name)
+                timeOutRef.current = setTimeout(() => {
+                    socket.current.off("answeredCall")
+                    socket.current.emit("answeredCall", {
+                        to: data.from,
+                        name: name,
+                        accepted: false,
+                        reason: `${name} did not answer the call`
+                    })
+                    setIncomingCall(false);
+                }, 30 * 1000);
+            })
+        }
+    }
 
     const callUser = () => {
         const peer = new Peer({
@@ -92,15 +160,17 @@ const VideoCall = () => {
             if (data.accepted === true) {
                 dispatch(setOncall({ onCall: true }))
                 peer.signal(data.signal)
+                // document.getElementById("callerAvatar").innerHTML=multiavatar(data.name)
+
             } else {
-                document.getElementById("userbusy").innerHTML = `${data.name} is busy`
+                document.getElementById("userbusy").innerHTML = data.reason
             }
         })
         peerRef.current = peer
     }
 
-    const answerCall =async () => {
-        if(onCall){
+    const answerCall = async () => {
+        if (onCall) {
             await peerRef.current.destroy()
         }
         setUserId(callerId)
@@ -134,9 +204,8 @@ const VideoCall = () => {
         peerRef.current.on("close", () => {
             dispatch(setOncall({ onCall: false }));
             // socket.current.off("callAccepted")
-            setUserId("")
         })
-        peerRef.current.on('error',(error)=>{
+        peerRef.current.on('error', (error) => {
             console.log(error)
         })
     }
@@ -148,6 +217,7 @@ const VideoCall = () => {
     const muteUnmute = () => {
         stream.getAudioTracks()[0].enabled = !(stream.getAudioTracks()[0].enabled);
         setMute(!mute)
+        socket.current.off("mute")
         socket.current.emit("mute", {
             to: userId,
             audio: !mute
@@ -156,6 +226,7 @@ const VideoCall = () => {
     const stopVideo = () => {
         stream.getVideoTracks()[0].enabled = !(stream.getVideoTracks()[0].enabled)
         setMyVideoOn(!myVideoOn)
+        socket.current.off("videoOff")
         socket.current.emit("videoOff", {
             to: userId,
             video: myVideoOn
@@ -163,19 +234,23 @@ const VideoCall = () => {
     }
 
     const rejectCall = () => {
+        setIncomingCall(false)
+        clearTimeout(timeOutRef.current)
         socket.current.off("answeredCall")
         socket.current.emit("answeredCall", {
             to: callerId,
-            name : name,
-            accepted: false
+            name: name,
+            accepted: false,
+            reason: `${name} rejected the call`
         })
-        setCallerId("")
-        setIncomingCall(false)
     }
 
     return (
         <div className='flex flex-col gap-2 justify-center items-center'>
-            {onCall && <div>{userName}</div>}
+            {onCall && <div>
+                <div id='callerAvatar'></div>
+                <div>{userName}</div>
+            </div>}
             {stream && <video playsInline ref={myStream} autoPlay muted height="5rem" width="300rem" />}
             {!myVideoOn && <div>Avatar</div>}
             {onCall && <video playsInline ref={callerStream} autoPlay height="5rem" width="300rem" />}
@@ -206,7 +281,7 @@ const VideoCall = () => {
                 </div>
             )}
             {onCall && (
-                <Message socket={socket.current} userId={userId} />
+                <Message socket={socket.current} userId={userId} peer={peerRef.current} />
             )}
             <button onClick={muteUnmute}>Mute</button>
             <button onClick={stopVideo}>Stop video</button>
