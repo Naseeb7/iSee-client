@@ -1,60 +1,56 @@
-import multiavatar from '@multiavatar/multiavatar/esm';
 import React, { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux';
 import { io } from "socket.io-client";
 import Peer from "simple-peer"
 import { setOncall } from '../reducers';
 import Message from './Message';
+import Avatar, { genConfig } from 'react-nice-avatar'
+import Notifications from './Notifications';
 
 const baseURL = process.env.REACT_APP_BASE_URL
 
 const VideoCall = () => {
     const [myId, setMyId] = useState()
     const [stream, setStream] = useState()
-    const [userId, setUserId] = useState()
-    const [callerId, setCallerId] = useState()
-    const [incomingCall, setIncomingCall] = useState(false)
-    const [userSignal, setUserSignal] = useState()
     const [myVideoOn, setMyVideoOn] = useState(true)
-    const [userVideoOff, setUserVideoOff] = useState(false)
     const [mute, setMute] = useState(false)
-    const [userMute, setUserMute] = useState(false)
-    const timeOutRef = useRef()
-    const [userName, setUserName] = useState("")
-    const [callerName, setCallerName] = useState("")
+    const [notifications, setNotifications] = useState([])
     const name = useSelector((state) => state.name)
-    const socket = useRef()
-    const dispatch = useDispatch()
+    const [callerId, setCallerId] = useState()
+    const [userSignal, setUserSignal] = useState()
+    const [callerName, setCallerName] = useState("")
+    const [callerAvatar, setCallerAvatar] = useState()
+    const [userId, setUserId] = useState()
+    const [userVideoOff, setUserVideoOff] = useState(false)
+    const [userName, setUserName] = useState("")
+    const [userMute, setUserMute] = useState(false)
+    const [userAvatar, setUserAvatar] = useState()
+    const [incomingCall, setIncomingCall] = useState(false)
     const onCall = useSelector((state) => state.onCall)
+    const dispatch = useDispatch()
+    const timeOutRef = useRef()
+    const socket = useRef()
     const myStream = useRef({})
     const callerStream = useRef()
     const peerRef = useRef()
+    const notificationRef = useRef(0)
 
     useEffect(() => {
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((data) => {
-            setStream(data);
-            myStream.current.srcObject = data;
-        })
+        // navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((data) => {
+        //     setStream(data);
+        //     myStream.current.srcObject = data;
+        // })
 
-        socket.current = io(baseURL,{
-            reconnection : true,
-            reconnectionDelay : 500,
-            reconnectionAttempts : Infinity,
+        socket.current = io(baseURL, {
+            reconnection: true,
+            reconnectionDelay: 500,
+            reconnectionAttempts: Infinity,
         })
 
         socket.current.off("myid")
         socket.current.on("myid", (data) => {
             setMyId(data)
         })
-
-        // socket.current.off("receivingCall")
-        // socket.current.on("receivingCall", (data) => {
-        //     setIncomingCall(true);
-        //     setCallerId(data.from);
-        //     setCallerName(data.name);
-        //     setUserSignal(data.signal);
-        //     // document.getElementById("callerAvatar").innerHTML=multiavatar(data.name)
-        // })
 
         socket.current.off("userVideoOff")
         socket.current.on("userVideoOff", (data) => {
@@ -68,13 +64,27 @@ const VideoCall = () => {
 
         socket.current.off("callEnded")
         socket.current.on("callEnded", (data) => {
-            if (peerRef.current) {
+            peerRef.current.destroy()
+        })
+
+    }, [])
+
+    useEffect(()=>{
+        if(notifications.length > notificationRef.current){
+            setTimeout(() => {
+                setNotifications((prev)=>prev.slice(1))
+            }, 3500);
+        }
+        notificationRef.current=notifications.length
+    },[notifications])
+
+    if (socket.current) {
+        socket.current.off("userDisconnected")
+        socket.current.on("userDisconnected", (data) => {
+            if (data === userId) {
                 peerRef.current.destroy()
             }
         })
-    }, [])
-
-    if (socket.current) {
         if (incomingCall) {
             socket.current.off("receivingCall")
             socket.current.on("receivingCall", (data) => {
@@ -93,6 +103,7 @@ const VideoCall = () => {
                 setCallerId(data.from);
                 setCallerName(data.name);
                 setUserSignal(data.signal);
+                setCallerAvatar(genConfig(data.name))
                 socket.current.off("answeredCall")
                 socket.current.emit("answeredCall", {
                     to: data.from,
@@ -109,7 +120,7 @@ const VideoCall = () => {
                         reason: `${name} did not answer the call`
                     })
                     setIncomingCall(false);
-                }, 30 * 1000);
+                }, 5000);
             })
         }
         else {
@@ -119,7 +130,7 @@ const VideoCall = () => {
                 setCallerId(data.from);
                 setCallerName(data.name);
                 setUserSignal(data.signal);
-                // document.getElementById("callerAvatar").innerHTML=multiavatar(data.name)
+                setCallerAvatar(genConfig(data.name))
                 timeOutRef.current = setTimeout(() => {
                     socket.current.off("answeredCall")
                     socket.current.emit("answeredCall", {
@@ -129,7 +140,7 @@ const VideoCall = () => {
                         reason: `${name} did not answer the call`
                     })
                     setIncomingCall(false);
-                }, 30 * 1000);
+                }, 5000);
             })
         }
     }
@@ -160,21 +171,22 @@ const VideoCall = () => {
             if (data.accepted === true) {
                 dispatch(setOncall({ onCall: true }))
                 peer.signal(data.signal)
-                // document.getElementById("callerAvatar").innerHTML=multiavatar(data.name)
-
+                setUserName(data.name)
             } else {
-                document.getElementById("userbusy").innerHTML = data.reason
+                setNotifications((prev) => [...prev, data.reason])
             }
         })
         peerRef.current = peer
     }
 
     const answerCall = async () => {
+        clearTimeout(timeOutRef.current)
         if (onCall) {
             await peerRef.current.destroy()
         }
         setUserId(callerId)
         setUserName(callerName)
+        setUserAvatar(genConfig(userName))
         dispatch(setOncall({ onCall: true }))
         setIncomingCall(false)
         const peer = new Peer({
@@ -188,7 +200,8 @@ const VideoCall = () => {
             socket.current.emit("answeredCall", {
                 to: callerId,
                 signal: data,
-                accepted: true
+                accepted: true,
+                name: name
             })
         })
 
@@ -203,7 +216,6 @@ const VideoCall = () => {
     if (peerRef.current) {
         peerRef.current.on("close", () => {
             dispatch(setOncall({ onCall: false }));
-            // socket.current.off("callAccepted")
         })
         peerRef.current.on('error', (error) => {
             console.log(error)
@@ -245,46 +257,76 @@ const VideoCall = () => {
         })
     }
 
+    // setInterval(() => {
+    //         // const arr = notifications
+    //         // const newNot = arr.slice(1)
+    //         // notifications.shift()
+    //         if(notifications.length===0)return;
+    //         setNotifications((prev)=> prev.slice(1))
+    // }, 3500)
+
     return (
-        <div className='flex flex-col gap-2 justify-center items-center'>
-            {onCall && <div>
-                <div id='callerAvatar'></div>
-                <div>{userName}</div>
-            </div>}
-            {stream && <video playsInline ref={myStream} autoPlay muted height="5rem" width="300rem" />}
-            {!myVideoOn && <div>Avatar</div>}
-            {onCall && <video playsInline ref={callerStream} autoPlay height="5rem" width="300rem" />}
-            {onCall && (
-                userVideoOff ? <div>User Video Off</div> : <div>User Video On</div>
-            )}
-            {onCall && (
-                userMute ? <div>User  Mute</div> : <div>User Unmute</div>
+        <div className='flex flex-col-reverse md:flex-row m-2 p-2 gap-4 md:gap-2 items-center md:justify-center md:items-start'>
+            <div className="flex w-3/4 border-2 border-black">
+                {onCall && <div>
+                    <div id='callerAvatar'></div>
+                    <div>{userName}</div>
+                </div>}
+                {stream && <video playsInline ref={myStream} autoPlay muted height="5rem" width="300rem" />}
+                {!myVideoOn && <div>Avatar</div>}
+                {onCall && <video playsInline ref={callerStream} autoPlay height="5rem" width="300rem" />}
+                {onCall && (
+                    userVideoOff ? <div>User Video Off</div> : <div>User Video On</div>
+                )}
+                {onCall && (
+                    userMute ? <div>User  Mute</div> : <div>User Unmute</div>
+                )}
+                {onCall && (
+                    <div className="flex">
+                        <button onClick={endCall}>End</button>
+                    </div>
+                )}
+                {onCall && (
+                    <Message socket={socket.current} userId={userId} peer={peerRef.current} />
+                )}
+                <button onClick={muteUnmute}>Mute</button>
+                <button onClick={stopVideo}>Stop video</button>
+            </div>
+            <div className="flex flex-col gap-4 w-3/4 md:w-1/4 items-center">
+                {onCall ? (
+                    <div className='flex flex-col items-center p-2 gap-2 w-full bg-slate-200 rounded-lg'>
+                        <div className="flex justify-center items-center relative">
+                            <div className="flex border-8 border-green-300 rounded-full p-5 motion-safe:animate-ping absolute"></div>
+                            <Avatar className='w-20 h-20' {...userAvatar} />
+                        </div>
+                        <div className="flex text-lg text-teal-600 gap-2">On a call with <span className="font-bold">{userName}</span></div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center p-2 gap-2 w-full bg-slate-200 rounded-lg">
+                        <span className="flex text-lg text-teal-600">Enter the Code : </span>
+                        <input type="text" onChange={(e) => setUserId(e.target.value)} className='flex w-3/4 p-1 m-1 text-teal-600 rounded focus: outline-none' />
+                        <div className="flex w-3/4 p-1 justify-around">
+                            <button onClick={callUser} className='flex justify-center items-center text-slate-800 bg-teal-400 p-1 rounded w-1/3 hover:bg-teal-300' >Call</button>
+                            <button onClick={() => navigator.clipboard.writeText(myId)} className='flex justify-center items-center text-slate-800 bg-slate-400 p-1 rounded w-1/3 hover:bg-slate-300' >Copy</button>
+                        </div>
+                    </div>
+                )}
+            </div>
+            <Notifications notifications={notifications} />
+            {incomingCall && (
+                <div className="flex flex-col m-1 p-4 bg-teal-100 gap-2 rounded-xl items-center absolute top-16 w-full sm:w-2/4 md:w-1/3 animate-slideDown">
+                    <div className="flex justify-center items-center gap-2">
+                        <Avatar className='w-8 h-8' {...callerAvatar} />
+                        <div className='text-teal-600 text-lg'>{callerName}</div>
+                    </div>
+                    <div className="flex w-full md:w-3/4 items-center justify-around">
+                        <button onClick={answerCall} className='flex justify-center items-center bg-green-500 p-1 gap-1 rounded-xl text-teal-100 sm:w-1/3 w-1/3'><i className="fa-solid fa-phone animate-wiggle" />Answer</button>
+                        <button onClick={rejectCall} className='flex justify-center items-center bg-red-500 p-1 gap-1 rounded-xl text-teal-50 sm:w-1/3 w-1/3' ><i class="fa-solid fa-ban" />Reject</button>
+                    </div>
+                </div>
             )}
             <div id="userbusy"></div>
             {mute && <div>Muted</div>}
-            <div className="flex">
-                <input type="text" onChange={(e) => setUserId(e.target.value)} />
-                <button onClick={callUser}>Call</button>
-                <button onClick={() => navigator.clipboard.writeText(myId)}>Copy</button>
-            </div>
-            {incomingCall && (
-                <div className="flex">
-                    <div id="callerAvatar"></div>
-                    <div>{callerName}</div>
-                    <button onClick={answerCall}>Answer</button>
-                    <button onClick={rejectCall}>Reject</button>
-                </div>
-            )}
-            {onCall && (
-                <div className="flex">
-                    <button onClick={endCall}>End</button>
-                </div>
-            )}
-            {onCall && (
-                <Message socket={socket.current} userId={userId} peer={peerRef.current} />
-            )}
-            <button onClick={muteUnmute}>Mute</button>
-            <button onClick={stopVideo}>Stop video</button>
         </div>
     )
 }

@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from "react-redux"
 import { setName } from "../reducers"
 import { useEffect, useState } from "react"
-import multiavatar from '@multiavatar/multiavatar/esm'
+import Avatar, { genConfig } from 'react-nice-avatar'
 
 
 const Navbar = () => {
@@ -12,11 +12,9 @@ const Navbar = () => {
 
   const updateAvatar = (Name) => {
     if (Name.length) {
-      const svgCode = multiavatar(Name)
-      document.getElementById("avatar").innerHTML = svgCode;
+      setAvatar(genConfig(Name))
     } else {
-      const svgCode = multiavatar("Pradosh")
-      document.getElementById("avatar").innerHTML = svgCode;
+      setAvatar(genConfig("Robot"))
     }
   }
   useEffect(() => {
@@ -37,7 +35,7 @@ const Navbar = () => {
       <div className="flex">
         <div className="flex items-center justify-end gap-2 p-1 sm:px-4 sm:text-xl text-slate-600">
           <input id="name" type="text" onChange={nameChange} value={name} placeholder="Pick a name" className="bg-slate-200 text-right focus:outline-none text-teal-600 w-3/4" />
-          <div id="avatar" className=" w-1/6"></div>
+          <Avatar className="w-12 h-full" {...avatar} />
         </div>
       </div>
     </div>
