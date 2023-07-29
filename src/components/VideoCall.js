@@ -6,6 +6,8 @@ import { setOncall } from '../reducers';
 import Message from './Message';
 import Avatar, { genConfig } from 'react-nice-avatar'
 import Notifications from './Notifications';
+import { v4 as uuidv4 } from 'uuid';
+import { Phone, PhoneCall, XCircle } from 'lucide-react';
 
 const baseURL = process.env.REACT_APP_BASE_URL
 
@@ -67,22 +69,22 @@ const VideoCall = () => {
             peerRef.current.destroy()
         })
 
+        socket.current.on("on_error",()=>{
+            setNotifications((prev) => [...prev, { reason: "Something went wrong! Please reconnect.", id: uuidv4() }])
+        })
+
     }, [])
 
-    useEffect(()=>{
-        if(notifications.length > notificationRef.current){
-            setTimeout(() => {
-                setNotifications((prev)=>prev.slice(1))
-            }, 3500);
-        }
-        notificationRef.current=notifications.length
-    },[notifications])
+    const randomID = () => {
+
+    }
 
     if (socket.current) {
         socket.current.off("userDisconnected")
         socket.current.on("userDisconnected", (data) => {
             if (data === userId) {
                 peerRef.current.destroy()
+                setNotifications((prev) => [...prev, { reason: "User disconnected! Please reconnect.", id: uuidv4() }])
             }
         })
         if (incomingCall) {
@@ -120,7 +122,7 @@ const VideoCall = () => {
                         reason: `${name} did not answer the call`
                     })
                     setIncomingCall(false);
-                }, 5000);
+                }, 30 * 1000);
             })
         }
         else {
@@ -140,7 +142,7 @@ const VideoCall = () => {
                         reason: `${name} did not answer the call`
                     })
                     setIncomingCall(false);
-                }, 5000);
+                }, 30 * 1000);
             })
         }
     }
@@ -173,7 +175,8 @@ const VideoCall = () => {
                 peer.signal(data.signal)
                 setUserName(data.name)
             } else {
-                setNotifications((prev) => [...prev, data.reason])
+                // setNotifications([...notifications, { reason : data.reason, id : notifications.length}])
+                setNotifications((prev) => [...prev, { reason: data.reason, id: uuidv4() }])
             }
         })
         peerRef.current = peer
@@ -216,14 +219,20 @@ const VideoCall = () => {
     if (peerRef.current) {
         peerRef.current.on("close", () => {
             dispatch(setOncall({ onCall: false }));
+            peerRef.current.destroy()
+            setCallerId()
+            setUserId()
         })
         peerRef.current.on('error', (error) => {
-            console.log(error)
+                // setNotifications((prev) => [...prev, { reason: "Something went wrong! Please reconnect.", id: uuidv4() }])
+                console.log(error)
         })
     }
 
     const endCall = () => {
         peerRef.current.destroy();
+        setCallerId()
+        setUserId()
     }
 
     const muteUnmute = () => {
@@ -257,13 +266,10 @@ const VideoCall = () => {
         })
     }
 
-    // setInterval(() => {
-    //         // const arr = notifications
-    //         // const newNot = arr.slice(1)
-    //         // notifications.shift()
-    //         if(notifications.length===0)return;
-    //         setNotifications((prev)=> prev.slice(1))
-    // }, 3500)
+    const deleteNotification = (id) => {
+        setNotifications((prev) => prev.filter((notification) => notification.id !== id))
+        // setNotifications(notifications.filter((notification)=>notification.id !== id))
+    }
 
     return (
         <div className='flex flex-col-reverse md:flex-row m-2 p-2 gap-4 md:gap-2 items-center md:justify-center md:items-start'>
@@ -282,11 +288,6 @@ const VideoCall = () => {
                     userMute ? <div>User  Mute</div> : <div>User Unmute</div>
                 )}
                 {onCall && (
-                    <div className="flex">
-                        <button onClick={endCall}>End</button>
-                    </div>
-                )}
-                {onCall && (
                     <Message socket={socket.current} userId={userId} peer={peerRef.current} />
                 )}
                 <button onClick={muteUnmute}>Mute</button>
@@ -294,15 +295,19 @@ const VideoCall = () => {
             </div>
             <div className="flex flex-col gap-4 w-3/4 md:w-1/4 items-center">
                 {onCall ? (
-                    <div className='flex flex-col items-center p-2 gap-2 w-full bg-slate-200 rounded-lg'>
+                    <div className='flex animate-Appear flex-col items-center p-2 gap-2 w-full bg-slate-200 rounded-lg'>
                         <div className="flex justify-center items-center relative">
                             <div className="flex border-8 border-green-300 rounded-full p-5 motion-safe:animate-ping absolute"></div>
                             <Avatar className='w-20 h-20' {...userAvatar} />
                         </div>
-                        <div className="flex text-lg text-teal-600 gap-2">On a call with <span className="font-bold">{userName}</span></div>
+                        <div className="flex flex-wrap justify-center text-lg text-teal-600 gap-2">
+                            On a call with
+                            <span className="font-bold">{userName}</span>
+                        </div>
+                        <button className='flex p-1 justify-center w-1/4 bg-red-600 text-white rounded-lg' onClick={endCall}>End Call</button>
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center p-2 gap-2 w-full bg-slate-200 rounded-lg">
+                    <div className="flex animate-Appear flex-col items-center p-2 gap-2 w-full bg-slate-200 rounded-lg">
                         <span className="flex text-lg text-teal-600">Enter the Code : </span>
                         <input type="text" onChange={(e) => setUserId(e.target.value)} className='flex w-3/4 p-1 m-1 text-teal-600 rounded focus: outline-none' />
                         <div className="flex w-3/4 p-1 justify-around">
@@ -312,7 +317,11 @@ const VideoCall = () => {
                     </div>
                 )}
             </div>
-            <Notifications notifications={notifications} />
+            <div className='flex flex-col items-end overflow-hidden gap-2 w-3/4 sm:max-w-fit absolute right-0 bottom-20'>
+                {notifications.map((notification) => {
+                    return <Notifications notification={notification.reason} key={notification.id} onDelete={() => deleteNotification(notification.id)} autoClose={true} />
+                })}
+            </div>
             {incomingCall && (
                 <div className="flex flex-col m-1 p-4 bg-teal-100 gap-2 rounded-xl items-center absolute top-16 w-full sm:w-2/4 md:w-1/3 animate-slideDown">
                     <div className="flex justify-center items-center gap-2">
@@ -320,8 +329,8 @@ const VideoCall = () => {
                         <div className='text-teal-600 text-lg'>{callerName}</div>
                     </div>
                     <div className="flex w-full md:w-3/4 items-center justify-around">
-                        <button onClick={answerCall} className='flex justify-center items-center bg-green-500 p-1 gap-1 rounded-xl text-teal-100 sm:w-1/3 w-1/3'><i className="fa-solid fa-phone animate-wiggle" />Answer</button>
-                        <button onClick={rejectCall} className='flex justify-center items-center bg-red-500 p-1 gap-1 rounded-xl text-teal-50 sm:w-1/3 w-1/3' ><i class="fa-solid fa-ban" />Reject</button>
+                        <button onClick={answerCall} className='flex justify-center items-center bg-green-500 p-1 gap-1 rounded-xl text-teal-100 sm:w-1/3 w-1/3'><PhoneCall size={20} className=" animate-wiggle" />Answer</button>
+                        <button onClick={rejectCall} className='flex justify-center items-center bg-red-500 p-1 gap-1 rounded-xl text-teal-50 sm:w-1/3 w-1/3' ><XCircle size={20} />Reject</button>
                     </div>
                 </div>
             )}
