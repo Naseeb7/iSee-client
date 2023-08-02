@@ -5,8 +5,8 @@ import VideoCall from "./components/VideoCall";
 function App() {
   return (
     <>
-    <Navbar />
-    <VideoCall />
+      <Navbar />
+      <VideoCall />
     </>
   );
 }
