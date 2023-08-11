@@ -3,13 +3,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { io } from "socket.io-client";
 import Peer from "simple-peer";
 import { setOncall } from "../reducers";
-import Message from "./widgets/Message";
 import Avatar, { genConfig } from "react-nice-avatar";
 import Notifications from "./widgets/Notifications";
 import { v4 as uuidv4 } from "uuid";
 import { PhoneCall, XCircle } from "lucide-react";
-import Video from "./widgets/VideoWidget";
-import VideoWidget from "./widgets/VideoWidget";
+import OncallWidget from "./widgets/OncallWidget";
 
 const baseURL = process.env.REACT_APP_BASE_URL;
 
@@ -246,10 +244,13 @@ const VideoCall = () => {
 
     return (
         <div className="flex flex-col-reverse md:flex-row m-2 p-2 gap-4 md:gap-2 items-center md:justify-center md:items-start">
-           <VideoWidget peer={peerRef.current} socket={socket.current} stream={stream} myStream={myStream} callerStream={callerStream} userId={userId}/>
+
+            {/* Video Component */}
+            <OncallWidget peer={peerRef.current} socket={socket.current} stream={stream} myStream={myStream} callerStream={callerStream} userId={userId} />
 
             {/* Calling Component */}
             <div className="flex gap-4 relative w-11/12 md:w-1/4 items-center justify-center overflow-hidden bg-slate-200 rounded-2xl">
+
                 {/* OnCall */}
                 <div className={`flex ${onCall ? "translate-x-0" : "translate-x-full scale-0"} origin-left duration-700 flex-col items-center p-2 gap-2 w-full `}>
                     <div className="flex justify-center items-center relative">
@@ -270,6 +271,7 @@ const VideoCall = () => {
                         </span>
                     </button>
                 </div>
+
                 {/* Not Oncall */}
                 <div className={`flex ${onCall ? "-translate-x-full scale-0" : "translate-x-0"} origin-right absolute h-full justify-center duration-700 flex-col items-center p-2 gap-2 w-full`}>
                     <span className="flex text-lg text-teal-600">
@@ -300,7 +302,7 @@ const VideoCall = () => {
                 </div>
             </div>
 
-
+            {/* Notification Component */}
             <div className="flex flex-col items-end overflow-hidden gap-2 w-3/4 sm:max-w-fit absolute right-0 bottom-20">
                 {notifications.map((notification) => {
                     return (
@@ -314,7 +316,7 @@ const VideoCall = () => {
                 })}
             </div>
 
-
+            {/* Incoming Call Component */}
             {incomingCall && (
                 <div className="flex flex-col m-1 p-4 bg-teal-100 gap-2 rounded-xl items-center absolute top-12 sm:top-14 w-11/12 sm:w-2/4 md:w-1/3 animate-slideDown">
                     <div className="flex justify-center items-center gap-2">
@@ -345,7 +347,6 @@ const VideoCall = () => {
                     </div>
                 </div>
             )}
-            <div id="userbusy"></div>
         </div>
     );
 };

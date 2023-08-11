@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
 
-const Message = ({ socket, userId, peer }) => {
+const ChatWidget = ({ socket, userId, peer }) => {
     const [messages, setMessages] = useState([])
     const [text, setText] = useState("")
     const [file, setFile] = useState()
@@ -88,7 +88,7 @@ const Message = ({ socket, userId, peer }) => {
         // setMessages((prev) => [...prev, { message: text, fromSelf: true }])
     }
     return (
-        <div className='flex flex-col bg-slate-500'>
+        <div id='chatWidget' className='flex flex-col bg-slate-500'>
             {messages.map((message) => {
                 return <div className="flex w-full">
                     {message.fromSelf ? (
@@ -125,4 +125,4 @@ const Message = ({ socket, userId, peer }) => {
     )
 }
 
-export default Message
+export default ChatWidget
