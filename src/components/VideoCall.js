@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { io } from "socket.io-client";
 import Peer from "simple-peer";
-import { setOncall } from "../reducers";
+import { setIsDisconnecting, setOncall } from "../reducers";
 import Avatar, { genConfig } from "react-nice-avatar";
 import Notifications from "./widgets/Notifications";
 import { v4 as uuidv4 } from "uuid";
@@ -25,6 +25,7 @@ const VideoCall = () => {
     const [userAvatar, setUserAvatar] = useState();
     const [incomingCall, setIncomingCall] = useState(false);
     const onCall = useSelector((state) => state.onCall);
+    const isDisconnecting = useSelector((state) => state.isDisconnecting);
     const dispatch = useDispatch();
     const timeOutRef = useRef();
     const socket = useRef();
@@ -207,7 +208,7 @@ const VideoCall = () => {
 
     if (peerRef.current) {
         peerRef.current.on("close", () => {
-            dispatch(setOncall({ onCall: false }));
+            dispatch(setIsDisconnecting({ isDisconnecting : true }))
             peerRef.current.destroy();
             setCallerId("");
             setUserId("");
@@ -242,11 +243,23 @@ const VideoCall = () => {
         // setNotifications(notifications.filter((notification)=>notification.id !== id))
     };
 
+    useEffect(()=>{
+        if(isDisconnecting){
+            const timeout=setTimeout(() => {
+                dispatch(setOncall({ onCall: false }));
+                dispatch(setIsDisconnecting({ isDisconnecting : false }))
+            }, 500)
+            return ()=>{
+                clearTimeout(timeout)
+            }
+        }
+    },[isDisconnecting])
+
     return (
         <div className="flex flex-col-reverse md:flex-row m-2 p-2 gap-4 md:gap-2 items-center md:justify-center md:items-start">
 
             {/* Video Component */}
-            <OncallWidget peer={peerRef.current} socket={socket.current} stream={stream} myStream={myStream} callerStream={callerStream} userId={userId} />
+            <OncallWidget peer={peerRef.current} socket={socket.current} stream={stream} myStream={myStream} callerStream={callerStream} userId={userId} userName={userName} />
 
             {/* Calling Component */}
             <div className="flex gap-4 relative w-11/12 md:w-1/4 items-center justify-center overflow-hidden bg-slate-200 rounded-2xl">

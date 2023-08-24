@@ -28,20 +28,26 @@ const Navbar = () => {
   };
 
   return (
-    <div id="navbar" className="flex justify-between items-center bg-slate-200 p-2">
+    <div
+      id="navbar"
+      className="flex justify-between items-center bg-slate-200 p-2"
+    >
       <div className="flex px-2 sm:text-4xl text-2xl font-bold text-teal-600">
         iSee
       </div>
       <div className="flex">
-        <div className="flex items-center justify-end gap-2 p-1 sm:px-4 sm:text-xl text-slate-600">
+        <div className="flex relative items-center justify-end gap-2 p-1 sm:px-4 sm:text-xl text-slate-600">
           <input
             id="name"
             type="text"
             onChange={nameChange}
             value={name}
             placeholder="Pick a name"
-            className="bg-slate-200 text-right focus:outline-none text-teal-600 w-3/4"
+            className="bg-slate-200 text-right focus:outline-none text-teal-600 w-3/4 duration-300 peer"
           />
+          {!onCall && (
+            <div className="flex absolute sm:right-12 right-8 border border-teal-600 h-3/4 animate-Blip peer-focus:hidden"></div>
+          )}
           <Avatar className="w-12 h-full" {...avatar} />
         </div>
       </div>
