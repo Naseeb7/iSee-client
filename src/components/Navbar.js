@@ -18,7 +18,7 @@ const Navbar = () => {
   };
   useEffect(() => {
     updateAvatar(name);
-  }, []);
+  }, []); //eslint-disable-line
 
   const nameChange = (e) => {
     if (!onCall) {
