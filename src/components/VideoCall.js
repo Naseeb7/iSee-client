@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { io } from "socket.io-client";
 import Peer from "simple-peer";
 import {
-  setIsDisconnecting,
   setOncall,
   setUserMute,
   setUserVideoOff,
@@ -30,7 +29,6 @@ const VideoCall = () => {
   const [userAvatar, setUserAvatar] = useState();
   const [incomingCall, setIncomingCall] = useState(false);
   const onCall = useSelector((state) => state.onCall);
-  const isDisconnecting = useSelector((state) => state.isDisconnecting);
   const myVideoOff = useSelector((state) => state.myVideoOff);
   const mute = useSelector((state) => state.mute);
   const [callerMute, setCallerMute] = useState(false);
@@ -67,6 +65,7 @@ const VideoCall = () => {
       peerRef.current.destroy();
     });
 
+    socket.current.off("on_error");
     socket.current.on("on_error", () => {
       setNotifications((prev) => [
         ...prev,
@@ -75,7 +74,8 @@ const VideoCall = () => {
     });
   }, []); // eslint-disable-line
 
-  if (socket.current) {
+  useEffect(()=>{
+    if (socket.current) {
     socket.current.off("userDisconnected");
     socket.current.on("userDisconnected", (data) => {
       if (data === userId) {
@@ -146,6 +146,7 @@ const VideoCall = () => {
       });
     }
   }
+  },[incomingCall]); // eslint-disable-line
 
   const callUser = () => {
     const peer = new Peer({
@@ -229,7 +230,7 @@ const VideoCall = () => {
 
   if (peerRef.current) {
     peerRef.current.on("close", () => {
-      dispatch(setIsDisconnecting({ isDisconnecting: true }));
+      dispatch(setOncall({ onCall: !onCall }));
       peerRef.current.destroy();
       setCallerId("");
       setUserId("");
@@ -261,18 +262,6 @@ const VideoCall = () => {
       prev.filter((notification) => notification.id !== id)
     );
   };
-
-  useEffect(() => {
-    if (isDisconnecting) {
-      const timeout = setTimeout(() => {
-        dispatch(setOncall({ onCall: false }));
-        dispatch(setIsDisconnecting({ isDisconnecting: false }));
-      }, 500);
-      return () => {
-        clearTimeout(timeout);
-      };
-    }
-  }, [isDisconnecting]); // eslint-disable-line
 
   return (
     <div className="flex flex-col-reverse md:flex-row m-2 p-2 gap-4 md:gap-2 items-center md:justify-center md:items-start">

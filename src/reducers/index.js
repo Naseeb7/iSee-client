@@ -9,7 +9,6 @@ window.Buffer = [];
 const initialState = {
   name: defaultNames[Math.floor(Math.random() * defaultNames.length)],
   onCall: false,
-  isDisconnecting: false,
   myVideoOff: false,
   mute: false,
   userVideoOff: false,
@@ -26,9 +25,6 @@ export const stateSlice = createSlice({
     },
     setOncall: (state, action) => {
       state.onCall = action.payload.onCall;
-    },
-    setIsDisconnecting: (state, action) => {
-      state.isDisconnecting = action.payload.isDisconnecting;
     },
     setMyVideoOff: (state, action) => {
       state.myVideoOff = action.payload.myVideoOff;
@@ -50,7 +46,6 @@ export const stateSlice = createSlice({
 export const {
   setName,
   setOncall,
-  setIsDisconnecting,
   setMyVideoOff,
   setMute,
   setUserMute,

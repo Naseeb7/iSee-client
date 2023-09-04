@@ -23,7 +23,6 @@ const OncallWidget = ({
 }) => {
 
   const onCall = useSelector((state) => state.onCall);
-  const isDisconnecting = useSelector((state) => state.isDisconnecting);
   const myVideoOff = useSelector((state) => state.myVideoOff);
   const mute = useSelector((state) => state.mute);
   const userVideoOff = useSelector((state) => state.userVideoOff);
@@ -33,17 +32,17 @@ const OncallWidget = ({
 
   useEffect(() => {
     if (socket) {
-      socket.off("userVideoOff");
+      socket.off("userVideoOff")
       socket.on("userVideoOff", (data) => {
         dispatch(setUserVideoOff({ userVideoOff: data }));
       });
 
-      socket.off("userMute");
+      socket.off("userMute")
       socket.on("userMute", (data) => {
         dispatch(setUserMute({ userMute: data }));
       });
     }
-  }, []); // eslint-disable-line
+  }, [socket]); // eslint-disable-line
 
   useEffect(() => {
     if (peer) {
@@ -57,7 +56,7 @@ const OncallWidget = ({
   const muteUnmute = () => {
     stream.getAudioTracks()[0].enabled = !stream.getAudioTracks()[0].enabled;
     dispatch(setMute({ mute: !mute }));
-    socket.off("mute");
+    socket.off("mute")
     socket.emit("mute", {
       to: userId,
       audio: !mute,
@@ -66,7 +65,7 @@ const OncallWidget = ({
   const stopVideo = () => {
     stream.getVideoTracks()[0].enabled = !stream.getVideoTracks()[0].enabled;
     dispatch(setMyVideoOff({ myVideoOff: !myVideoOff }));
-    socket.off("videoOff");
+    socket.off("videoOff")
     socket.emit("videoOff", {
       to: userId,
       video: !myVideoOff,
@@ -118,9 +117,7 @@ const OncallWidget = ({
         )}
         {onCall && (
           <div
-            className={`flex origin-top ${
-              isDisconnecting ? "animate-scaleUp" : "animate-scaleDown"
-            } duration-300 relative w-full md:w-2/5 sm:w-4/5 group/userStream`}
+            className={`flex origin-top animate-scaleDown duration-300 relative w-full md:w-2/5 sm:w-4/5 group/userStream`}
           >
             <video
               playsInline

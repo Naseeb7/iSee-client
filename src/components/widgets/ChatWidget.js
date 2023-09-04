@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import typingAnimation from "../../assets/typingAnimation.json";
 import Lottie from "lottie-react";
 
-const ChatWidget = ({ socket, userId }) => {
+const ChatWidget = ({ socket, userId, peer }) => {
 
   const [messages, setMessages] = useState([]);
   const [userTyping, setUserTyping] = useState(false);
@@ -18,6 +18,16 @@ const ChatWidget = ({ socket, userId }) => {
       behaviour: "smooth",
     });
   }, [messages]); // eslint-disable-line
+
+  useEffect(()=>{
+    if(peer){
+      peer.on("close", () => {
+        setMessages([])
+        setText("")
+        setFile()
+      });
+    }
+  },[peer])
 
   useEffect(() => {
     if (socket) {
