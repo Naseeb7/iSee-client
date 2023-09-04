@@ -17,7 +17,7 @@ const baseURL = process.env.REACT_APP_BASE_URL;
 
 const VideoCall = () => {
   const [myId, setMyId] = useState();
-  const [stream, setStream] = useState();
+  const [stream, setStream] = useState({});
   const [notifications, setNotifications] = useState([]);
   const name = useSelector((state) => state.name);
   const [callerId, setCallerId] = useState();
@@ -37,7 +37,7 @@ const VideoCall = () => {
   const dispatch = useDispatch();
   const timeOutRef = useRef();
   const socket = useRef();
-  const myStream = useRef();
+  const myStream = useRef({});
   const callerStream = useRef();
   const peerRef = useRef();
 
