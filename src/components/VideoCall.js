@@ -33,7 +33,7 @@ const VideoCall = () => {
   const mute = useSelector((state) => state.mute);
   const [callerMute, setCallerMute] = useState(false);
   const [callerVideoOff, setCallerVideoOff] = useState(false);
-  const currentCamera = useSelector((state) => state.currentCamera);
+  // const currentCamera = useSelector((state) => state.currentCamera);
   const dispatch = useDispatch();
   const timeOutRef = useRef();
   const socket = useRef();
