@@ -43,7 +43,7 @@ const VideoCall = () => {
 
   useEffect(() => {
     navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: currentCamera }, audio: true })
+      .getUserMedia({ video: true, audio: true })
       .then((data) => {
         setStream(data);
         myStream.current.srcObject = data;
