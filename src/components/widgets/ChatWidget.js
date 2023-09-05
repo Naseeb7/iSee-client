@@ -71,7 +71,7 @@ const ChatWidget = ({ socket, userId, peer }) => {
         }, 1000);
       });
     }
-  }, [userId]); // eslint-disable-line
+  }, [userId,socket]); // eslint-disable-line
 
   const sendMessage = () => {
     if (file) {

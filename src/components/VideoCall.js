@@ -2,16 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { io } from "socket.io-client";
 import Peer from "simple-peer";
-import {
-  setOncall,
-  setUserMute,
-  setUserVideoOff,
-} from "../reducers";
+import { setOncall, setUserMute, setUserVideoOff } from "../reducers";
 import Avatar, { genConfig } from "react-nice-avatar";
 import Notifications from "./widgets/Notifications";
 import { v4 as uuidv4 } from "uuid";
-import { PhoneCall, XCircle } from "lucide-react";
+import { PhoneCall, Share2, XCircle } from "lucide-react";
 import OncallWidget from "./widgets/OncallWidget";
+import InviteWidget from "./widgets/InviteWidget";
 
 const baseURL = process.env.REACT_APP_BASE_URL;
 
@@ -33,12 +30,14 @@ const VideoCall = () => {
   const mute = useSelector((state) => state.mute);
   const [callerMute, setCallerMute] = useState(false);
   const [callerVideoOff, setCallerVideoOff] = useState(false);
+  const [calling, setCalling] = useState(false);
+  const [inviteWindow, setInviteWindow] = useState(false);
   const currentCamera = useSelector((state) => state.currentCamera);
   const dispatch = useDispatch();
   const timeOutRef = useRef();
   const socket = useRef();
   const myStream = useRef({});
-  const callerStream = useRef();
+  const callerStream = useRef({});
   const peerRef = useRef();
 
   useEffect(() => {
@@ -74,81 +73,82 @@ const VideoCall = () => {
     });
   }, []); // eslint-disable-line
 
-  useEffect(()=>{
+  useEffect(() => {
     if (socket.current) {
-    socket.current.off("userDisconnected");
-    socket.current.on("userDisconnected", (data) => {
-      if (data === userId) {
-        peerRef.current.destroy();
-        setNotifications((prev) => [
-          ...prev,
-          { reason: "User disconnected! Please reconnect.", id: uuidv4() },
-        ]);
+      socket.current.off("userDisconnected");
+      socket.current.on("userDisconnected", (data) => {
+        if (data === userId) {
+          peerRef.current.destroy();
+          setNotifications((prev) => [
+            ...prev,
+            { reason: "User disconnected! Please reconnect.", id: uuidv4() },
+          ]);
+        }
+      });
+      if (incomingCall) {
+        socket.current.off("receivingCall");
+        socket.current.on("receivingCall", (data) => {
+          socket.current.off("answeredCall");
+          socket.current.emit("answeredCall", {
+            to: data.from,
+            name: name,
+            accepted: false,
+            reason: `${name} is busy`,
+          });
+        });
+      } else if (onCall) {
+        socket.current.off("receivingCall");
+        socket.current.on("receivingCall", (data) => {
+          setIncomingCall(true);
+          setCallerId(data.from);
+          setCallerName(data.name);
+          setUserSignal(data.signal);
+          setCallerAvatar(genConfig(data.name));
+          socket.current.off("answeredCall");
+          socket.current.emit("answeredCall", {
+            to: data.from,
+            name: name,
+            accepted: false,
+            reason: `${name} is on another call, please wait!`,
+          });
+          timeOutRef.current = setTimeout(() => {
+            socket.current.off("answeredCall");
+            socket.current.emit("answeredCall", {
+              to: data.from,
+              name: name,
+              accepted: false,
+              reason: `${name} did not answer the call`,
+            });
+            setIncomingCall(false);
+          }, 30 * 1000);
+        });
+      } else {
+        socket.current.off("receivingCall");
+        socket.current.on("receivingCall", (data) => {
+          setIncomingCall(true);
+          setCallerId(data.from);
+          setCallerName(data.name);
+          setCallerVideoOff(data.video);
+          setCallerMute(data.mute);
+          setUserSignal(data.signal);
+          setCallerAvatar(genConfig(data.name));
+          timeOutRef.current = setTimeout(() => {
+            socket.current.off("answeredCall");
+            socket.current.emit("answeredCall", {
+              to: data.from,
+              name: name,
+              accepted: false,
+              reason: `${name} did not answer the call`,
+            });
+            setIncomingCall(false);
+          }, 30 * 1000);
+        });
       }
-    });
-    if (incomingCall) {
-      socket.current.off("receivingCall");
-      socket.current.on("receivingCall", (data) => {
-        socket.current.off("answeredCall");
-        socket.current.emit("answeredCall", {
-          to: data.from,
-          name: name,
-          accepted: false,
-          reason: `${name} is busy`,
-        });
-      });
-    } else if (onCall) {
-      socket.current.off("receivingCall");
-      socket.current.on("receivingCall", (data) => {
-        setIncomingCall(true);
-        setCallerId(data.from);
-        setCallerName(data.name);
-        setUserSignal(data.signal);
-        setCallerAvatar(genConfig(data.name));
-        socket.current.off("answeredCall");
-        socket.current.emit("answeredCall", {
-          to: data.from,
-          name: name,
-          accepted: false,
-          reason: `${name} is on another call, please wait!`,
-        });
-        timeOutRef.current = setTimeout(() => {
-          socket.current.off("answeredCall");
-          socket.current.emit("answeredCall", {
-            to: data.from,
-            name: name,
-            accepted: false,
-            reason: `${name} did not answer the call`,
-          });
-          setIncomingCall(false);
-        }, 30 * 1000);
-      });
-    } else {
-      socket.current.off("receivingCall");
-      socket.current.on("receivingCall", (data) => {
-        setIncomingCall(true);
-        setCallerId(data.from);
-        setCallerName(data.name);
-        setCallerVideoOff(data.video);
-        setCallerMute(data.mute);
-        setUserSignal(data.signal);
-        setCallerAvatar(genConfig(data.name));
-        timeOutRef.current = setTimeout(() => {
-          socket.current.off("answeredCall");
-          socket.current.emit("answeredCall", {
-            to: data.from,
-            name: name,
-            accepted: false,
-            reason: `${name} did not answer the call`,
-          });
-          setIncomingCall(false);
-        }, 30 * 1000);
-      });
     }
-  }
-  },[incomingCall]); // eslint-disable-line
+  }, [incomingCall]); // eslint-disable-line
 
   const callUser = () => {
+    setCalling(true);
     const peer = new Peer({
       initiator: true,
       trickle: false,
@@ -175,6 +175,7 @@ const VideoCall = () => {
     socket.current.on("callAccepted", (data) => {
       if (data.accepted === true) {
         dispatch(setOncall({ onCall: true }));
+        setCalling(false);
         peer.signal(data.signal);
         setUserName(data.name);
         dispatch(setUserVideoOff({ userVideoOff: data.video }));
@@ -184,6 +185,9 @@ const VideoCall = () => {
           ...prev,
           { reason: data.reason, id: uuidv4() },
         ]);
+        if (data.reason !== `${data.name} is on another call, please wait!`) {
+          setCalling(false);
+        }
       }
     });
     peerRef.current = peer;
@@ -228,17 +232,19 @@ const VideoCall = () => {
     peerRef.current = peer;
   };
 
-  if (peerRef.current) {
-    peerRef.current.on("close", () => {
-      dispatch(setOncall({ onCall: !onCall }));
-      peerRef.current.destroy();
-      setCallerId("");
-      setUserId("");
-    });
-    peerRef.current.on("error", (error) => {
-      console.log(error);
-    });
-  }
+  useEffect(() => {
+    if (peerRef.current) {
+      peerRef.current.on("close", () => {
+        dispatch(setOncall({ onCall: false }));
+        peerRef.current.destroy();
+        setCallerId("");
+        setUserId("");
+      });
+      peerRef.current.on("error", (error) => {
+        console.log(error);
+      });
+    }
+  }, [peerRef.current]); // eslint-disable-line
 
   const endCall = () => {
     peerRef.current.destroy();
@@ -277,8 +283,8 @@ const VideoCall = () => {
       />
 
       {/* Calling Widget */}
-      <div className="flex flex-col gap-2 relative w-11/12 md:w-1/4 items-center justify-center overflow-hidden  rounded-2xl">
-        <div className="flex w-full relative bg-slate-200 rounded-xl">
+      <div className="flex flex-col gap-1 relative w-11/12 md:w-1/4 items-center justify-center overflow-hidden rounded-2xl">
+        <div className="flex w-full relative bg-slate-200 rounded-2xl">
           {/* OnCall */}
           <div
             className={`flex ${
@@ -306,11 +312,15 @@ const VideoCall = () => {
           <div
             className={`flex ${
               onCall ? "-translate-x-full" : "translate-x-0"
-            } origin-right absolute h-full justify-center duration-700 flex-col items-center p-2 gap-2 w-full`}
+            } origin-right absolute h-full justify-center duration-700 flex-col items-center p-2 gap-2 w-full rounded-2xl`}
           >
-            <span className="flex text-lg text-teal-600">
-              Enter the Code :{" "}
-            </span>
+            {calling ? (
+              <span className="flex text-lg text-teal-600">Calling....</span>
+            ) : (
+              <span className="flex text-lg text-teal-600">
+                Enter the Code :{" "}
+              </span>
+            )}
             <input
               type="text"
               onChange={(e) => setUserId(e.target.value)}
@@ -334,6 +344,21 @@ const VideoCall = () => {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Invite Widget */}
+        <div
+          onClick={() => setInviteWindow(!inviteWindow)}
+          className="flex p-1 gap-2 w-full justify-center items-center bg-slate-300 text-teal-600 hover:cursor-pointer hover:bg-slate-400 hover:text-teal-800 duration-200 rounded-2xl h-[7vh]"
+        >
+          {inviteWindow ? (
+            <InviteWidget myId={myId} />
+          ) : (
+            <div className="flex w-full justify-center items-center gap-2 p-2 animate-slideDown">
+              <Share2 />
+              <span className="flex font-semibold">Send invite</span>
+            </div>
+          )}
         </div>
       </div>
 
