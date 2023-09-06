@@ -315,7 +315,7 @@ const VideoCall = () => {
             } origin-right absolute h-full justify-center duration-700 flex-col items-center p-2 gap-2 w-full rounded-2xl`}
           >
             {calling ? (
-              <span className="flex text-lg text-teal-600">Calling....</span>
+              <span className="flex text-lg text-teal-600 font-semibold">Calling....</span>
             ) : (
               <span className="flex text-lg text-teal-600">
                 Enter the Code :{" "}
@@ -330,9 +330,10 @@ const VideoCall = () => {
             <div className="flex w-3/4 p-1 justify-around">
               <button
                 onClick={callUser}
-                className="flex relative group justify-center items-center overflow-hidden text-slate-800 bg-teal-400 p-1 rounded-full w-1/3 hover:text-teal-300"
+                disabled={!userId && true}
+                className="flex relative group justify-center items-center overflow-hidden text-slate-800 bg-teal-400 p-1 rounded-full w-1/3 hover:text-teal-300 disabled:bg-slate-800 disabled:text-slate-600"
               >
-                <span className="absolute flex w-full h-full rounded-full bg-teal-800 -translate-x-full group-hover:translate-x-0 duration-300 -z-1"></span>
+                <span className="absolute flex w-full h-full rounded-full bg-teal-800 -translate-x-full group-hover:translate-x-0 duration-300 -z-1 group-disabled:-translate-x-full"></span>
                 <span className="z-10">Call</span>
               </button>
               <button
@@ -349,10 +350,10 @@ const VideoCall = () => {
         {/* Invite Widget */}
         <div
           onClick={() => setInviteWindow(!inviteWindow)}
-          className="flex p-1 gap-2 w-full justify-center items-center bg-slate-300 text-teal-600 hover:cursor-pointer hover:bg-slate-400 hover:text-teal-800 duration-200 rounded-2xl h-[7vh]"
+          className={`flex p-1 gap-2 w-full justify-center items-center bg-slate-300 text-teal-600 hover:cursor-pointer hover:bg-slate-400 hover:text-teal-800 duration-200 rounded-2xl ${onCall ? "scale-y-0  h-[1vh]" : "scale-y-100 h-[7vh]"} origin-top`}
         >
           {inviteWindow ? (
-            <InviteWidget myId={myId} />
+            <InviteWidget myId={myId ? myId : "Please wait a bit longer to get id"} />
           ) : (
             <div className="flex w-full justify-center items-center gap-2 p-2 animate-slideDown">
               <Share2 />

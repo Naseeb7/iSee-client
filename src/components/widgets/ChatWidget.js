@@ -10,8 +10,20 @@ const ChatWidget = ({ socket, userId, peer }) => {
   const [userTyping, setUserTyping] = useState(false);
   const [text, setText] = useState("");
   const [file, setFile] = useState();
+  const [bigFile, setBigFile] = useState(false);
   const inputRef = useRef();
   const scrollRef = useRef(null);
+
+  const handleFile=(e)=>{
+    const maxSize= 5*1024*1024
+    if(e.target.files[0].size > maxSize){
+      setBigFile(true)
+      setFile()
+    }else{
+      setFile(e.target.files[0])
+      setBigFile(false)
+    }
+  }
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({
@@ -102,7 +114,7 @@ const ChatWidget = ({ socket, userId, peer }) => {
       setFile();
       setText("");
       inputRef.current.value = null;
-    } else {
+    } else if(text !== ""){
       const messageObj = {
         to: userId,
         message: text,
@@ -209,6 +221,15 @@ const ChatWidget = ({ socket, userId, peer }) => {
             </div>
           </div>
         )}
+
+        {bigFile && (
+          <div className="flex w-full justify-center items-center p-2 bottom-20 text-slate-400 absolute overflow-hidden">
+            <div className="flex justify-around items-center w-2/3 sm:w-1/2 p-2 bg-slate-200 rounded-xl animate-slideUpAndBounce">
+              Image size must not exceed 5mb
+              <X onClick={() => setBigFile(false)} className="w-1/12 cursor-pointer" />
+            </div>
+          </div>
+        )}
         <div className="flex justify-around items-center rounded-b-xl p-2 gap-2">
           <textarea
             value={text}
@@ -230,7 +251,7 @@ const ChatWidget = ({ socket, userId, peer }) => {
               name="file"
               id="file"
               accept="image/*"
-              onChange={(e) => setFile(e.target.files[0])}
+              onChange={handleFile}
               className="hidden"
             />
             <label
