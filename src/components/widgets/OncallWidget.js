@@ -86,14 +86,14 @@ const OncallWidget = ({
       >
         {stream && (
           <div
-            className={`flex w-full relative justify-center items-center duration-300 group/myStream -translate-x-4 sm:-translate-x-0 `}
+            className={`flex w-4/5 md:w-2/5 relative justify-center items-center duration-300 group/myStream -translate-x-4 sm:-translate-x-0 `}
           >
             <video
               playsInline
               ref={myStream}
               autoPlay
               muted
-              className={`flex rounded-l-xl duration-500 origin-bottom w-4/5 md:w-2/5`}
+              className={`flex rounded-l-xl duration-500 origin-bottom w-full`}
             />
             {mute && (
               <div className="flex absolute top-1 left-1 text-teal-600 z-10">

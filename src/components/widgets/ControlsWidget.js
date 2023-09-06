@@ -21,7 +21,7 @@ const ControlsWidget = ({
   }
   return (
     <div
-      className={`flex absolute flex-col rounded-r-xl justify-around h-full right-1 sm:right-8 bg-slate-800 sm:bg-slate-700 group-hover/myStream:bg-slate-800 sm:group-hover/myStream:p-3 sm:group-hover/myStream:right-6 text-teal-400 origin-bottom duration-200 group/widget p-1 sm:p-2`}
+      className={`flex absolute flex-col rounded-r-xl justify-around h-full -right-8 sm:-right-10 bg-slate-800 sm:bg-slate-700 group-hover/myStream:bg-slate-800 sm:group-hover/myStream:p-3 sm:group-hover/myStream:-right-12 text-teal-400 origin-bottom duration-200 group/widget p-1 sm:p-2`}
     >
       <div
         onClick={muteUnmute}
