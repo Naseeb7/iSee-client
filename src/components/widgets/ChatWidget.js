@@ -5,25 +5,25 @@ import typingAnimation from "../../assets/typingAnimation.json";
 import Lottie from "lottie-react";
 
 const ChatWidget = ({ socket, userId, peer }) => {
-
   const [messages, setMessages] = useState([]);
   const [userTyping, setUserTyping] = useState(false);
+  const [meTyping, setMeTyping] = useState(false);
   const [text, setText] = useState("");
   const [file, setFile] = useState();
   const [bigFile, setBigFile] = useState(false);
   const inputRef = useRef();
   const scrollRef = useRef(null);
 
-  const handleFile=(e)=>{
-    const maxSize= 5*1024*1024
-    if(e.target.files[0].size > maxSize){
-      setBigFile(true)
-      setFile()
-    }else{
-      setFile(e.target.files[0])
-      setBigFile(false)
+  const handleFile = (e) => {
+    const maxSize = 5 * 1024 * 1024;
+    if (e.target.files[0].size > maxSize) {
+      setBigFile(true);
+      setFile();
+    } else {
+      setFile(e.target.files[0]);
+      setBigFile(false);
     }
-  }
+  };
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({
@@ -31,15 +31,15 @@ const ChatWidget = ({ socket, userId, peer }) => {
     });
   }, [messages]); // eslint-disable-line
 
-  useEffect(()=>{
-    if(peer){
+  useEffect(() => {
+    if (peer) {
       peer.on("close", () => {
-        setMessages([])
-        setText("")
-        setFile()
+        setMessages([]);
+        setText("");
+        setFile();
       });
     }
-  },[peer])
+  }, [peer]);
 
   useEffect(() => {
     if (socket) {
@@ -83,7 +83,7 @@ const ChatWidget = ({ socket, userId, peer }) => {
         }, 1000);
       });
     }
-  }, [userId,socket]); // eslint-disable-line
+  }, [userId, socket]); // eslint-disable-line
 
   const sendMessage = () => {
     if (file) {
@@ -114,7 +114,7 @@ const ChatWidget = ({ socket, userId, peer }) => {
       setFile();
       setText("");
       inputRef.current.value = null;
-    } else if(text !== ""){
+    } else if (text !== "") {
       const messageObj = {
         to: userId,
         message: text,
@@ -136,24 +136,38 @@ const ChatWidget = ({ socket, userId, peer }) => {
   };
 
   const handleChange = (e) => {
+    setMeTyping(true);
     setText(e.target.value);
-    socket.off("typing");
-    socket.emit("typing", {
-      to: userId,
-      typing: true,
-    });
+    setTimeout(() => {
+      setMeTyping(false);
+    }, 300);
   };
+
+  useEffect(() => {
+    if (socket) {
+      socket.off("typing");
+      socket.emit("typing", {
+        to: userId,
+        typing: true,
+      });
+    }
+  }, [meTyping]); //eslint-disable-line
 
   return (
     <div
       id="chatWidget"
-      className="flex flex-col bg-slate-200 w-full gap-2 p-2 rounded-xl animate-scaleDown origin-top"
+      className="flex flex-col relative bg-slate-200 w-full gap-2 p-2 rounded-xl animate-scaleDown origin-top"
     >
-      <div className="flex text-2xl font-bold items-center text-slate-400">
+      <div className="flex gap-2 justify-self-end text-2xl font-bold items-center text-slate-400">
         ChatBox
+        {userTyping && (
+          <div className="flex w-full text-sm font-semibold">
+              typing...
+            </div>
+        )}
       </div>
-      <div className="flex relative flex-col p-2 bg-slate-300 rounded-xl gap-2">
-        <div className="flex flex-col h-[49vh] overflow-auto pt-2 w-full rounded-xl bg-slate-100 gap-1">
+      <div className="flex flex-col h-[49vh] overflow-auto p-2 bg-slate-100 rounded-xl gap-2">
+        <div className="flex flex-col pt-2 w-full rounded-xl gap-1">
           {messages.map((message) => {
             return (
               <div
@@ -212,8 +226,9 @@ const ChatWidget = ({ socket, userId, peer }) => {
             </div>
           )}
         </div>
+      </div>
         {file && (
-          <div className="flex w-full justify-center items-center p-2 bottom-20 text-slate-400 absolute overflow-hidden">
+          <div className="flex w-full justify-center items-center p-2 bottom-24 text-slate-400 absolute overflow-hidden">
             <div className="flex justify-between items-center w-2/3 sm:w-1/3 p-2 bg-slate-200 rounded-xl animate-slideUpAndBounce">
               <img src={URL.createObjectURL(file)} alt="" className="w-1/4" />
               <div className="flex">{file.name.substring(0, 10)}...</div>
@@ -223,10 +238,13 @@ const ChatWidget = ({ socket, userId, peer }) => {
         )}
 
         {bigFile && (
-          <div className="flex w-full justify-center items-center p-2 bottom-20 text-slate-400 absolute overflow-hidden">
+          <div className="flex w-full justify-center items-center p-2 bottom-24 text-slate-400 absolute overflow-hidden">
             <div className="flex justify-around items-center w-2/3 sm:w-1/2 p-2 bg-slate-200 rounded-xl animate-slideUpAndBounce">
               Image size must not exceed 5mb
-              <X onClick={() => setBigFile(false)} className="w-1/12 cursor-pointer" />
+              <X
+                onClick={() => setBigFile(false)}
+                className="w-1/12 cursor-pointer"
+              />
             </div>
           </div>
         )}
@@ -262,7 +280,6 @@ const ChatWidget = ({ socket, userId, peer }) => {
             </label>
           </div>
         </div>
-      </div>
     </div>
   );
 };
